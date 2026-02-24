@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document Scanner — Stage 1</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- ── Header ───────────────────────────────────────── -->
+    <header class="app-header">
+      <h1>📄 Document Scanner</h1>
+      <p class="subtitle">Stage 1 — Text PDF Analysis &amp; Field Recognition</p>
+    </header>
+
+    <!-- ── Drop zone ─────────────────────────────────────── -->
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-zone__content">
+        <span class="drop-zone__icon">📂</span>
+        <p>Drag &amp; drop PDF files here</p>
+        <p class="drop-zone__sub">or</p>
+        <label class="btn btn--secondary" for="fileInput">Browse files</label>
+        <input type="file" id="fileInput" accept=".pdf" multiple hidden />
+        <p class="drop-zone__hint">Up to 50 text-based PDF files</p>
+      </div>
+    </div>
+
+    <!-- ── Controls ──────────────────────────────────────── -->
+    <div class="controls">
+      <div class="controls__left">
+        <button class="btn btn--primary"    id="btnScan"   disabled>▶ Scan</button>
+        <button class="btn btn--danger"     id="btnCancel" disabled>⏹ Cancel</button>
+        <button class="btn btn--secondary"  id="btnClear"  disabled>🗑 Clear</button>
+      </div>
+      <div class="controls__right">
+        <button class="btn btn--export"  id="btnExport" disabled title="Export scan results as JSON">⬇ Export JSON</button>
+        <button class="btn btn--stage"   disabled title="Stage 2: Excel matching — coming soon">📊 Match (Excel)</button>
+        <button class="btn btn--stage"   disabled title="Stage 3: Generate EML for Outlook — coming soon">✉ Generate (EML)</button>
+      </div>
+    </div>
+
+    <!-- ── Overall progress ──────────────────────────────── -->
+    <div class="progress-bar-container" id="overallProgressContainer" hidden>
+      <div class="progress-bar__label">
+        <span id="progressLabel">Scanning…</span>
+        <span id="progressPercent">0%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-bar__fill" id="overallProgressFill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- ── File queue ─────────────────────────────────────── -->
+    <div class="queue-container" id="queueContainer">
+      <div class="queue-empty" id="queueEmpty">
+        <p>No files in queue. Add PDFs above to get started.</p>
+      </div>
+      <table class="queue-table" id="queueTable" hidden>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>File name</th>
+            <th>Size</th>
+            <th>Status</th>
+            <th>Pages</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="queueBody"></tbody>
+      </table>
+    </div>
+
+    <!-- ── Results detail panel ───────────────────────────── -->
+    <div class="results-panel" id="resultsPanel" hidden>
+      <h2 id="resultsPanelTitle">Results</h2>
+      <button class="btn btn--secondary btn--small" id="btnCloseResults">✕ Close</button>
+      <div id="resultsPanelContent"></div>
+    </div>
+
+  </div><!-- /.app -->
+
+  <!-- PDF.js (self-hosted, loaded from lib/ to avoid CDN security risks) -->
+  <script src="lib/pdfjs/pdf.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdfjs/pdf.worker.js';
+  </script>
+
+  <!-- Application scripts -->
+  <script src="js/fieldExtractor.js"></script>
+  <script src="js/scanner.js"></script>
+  <script src="providers/excelProvider.js"></script>
+  <script src="eml/generator.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

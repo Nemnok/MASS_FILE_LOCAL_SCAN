@@ -295,7 +295,7 @@
             <dd>${r.person.fullName ? escHtml(r.person.fullName) : '<em class="text-muted">not found</em>'}</dd>
             <dt>Tax ID</dt>
             <dd>${r.person.taxId
-              ? `<strong>${escHtml(r.person.taxId)}</strong> <span class="badge badge--type">${r.person.taxIdType}</span>`
+              ? `<strong>${escHtml(r.person.taxId)}</strong> <span class="badge badge--type">${escHtml(r.person.taxIdType)}</span>`
               : '<em class="text-muted">not found</em>'
             }</dd>
           </dl>

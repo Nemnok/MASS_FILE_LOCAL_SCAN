@@ -387,7 +387,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `scan-results-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
+    a.download = `scan-results-${new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-')}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -433,6 +433,7 @@
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 })();

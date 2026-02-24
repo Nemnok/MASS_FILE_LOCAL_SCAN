@@ -122,7 +122,9 @@ const FieldExtractor = (() => {
   // Person name extraction
   // ---------------------------------------------------------------------------
 
-  // Spanish honorifics + name patterns
+  // Spanish honorifics + name patterns:
+  // Group 1: honorific (D., Dña., Doña, Don, D.)
+  // Group 2: capitalized given name(s) + surname(s), 2–5 words
   const NAME_PATTERNS = [
     /(?:D\.?\s*ña\.?|Dña\.|Doña|Don|D\.)\s+([A-ZÁÉÍÓÚÜÑ][a-záéíóúüñA-ZÁÉÍÓÚÜÑ]+(?:[\s\-][A-ZÁÉÍÓÚÜÑ][a-záéíóúüñA-ZÁÉÍÓÚÜÑ]+){1,4})/g,
   ];
@@ -173,7 +175,7 @@ const FieldExtractor = (() => {
         const value = match[1];
         const type = classifyTaxId(value);
         if (!type) continue;
-        // Skip trivial false positives (all same digit repeated)
+        // Skip trivially fake values where all 8 digits are identical (e.g. 00000000T, 11111111H)
         if (/^(\d)\1{7}/.test(value)) continue;
 
         if (seen.has(value)) {

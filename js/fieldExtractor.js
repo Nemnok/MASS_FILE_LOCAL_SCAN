@@ -262,7 +262,7 @@ const FieldExtractor = (() => {
     // or from "Fecha de resolución:", avoiding "comprobada hasta la fecha" dates.
     const lines = fullText.split('\n');
     for (let i = 0; i < lines.length; i++) {
-      if (/Id\.?\s*CEA\s*:.*Fecha\s*:/i.test(lines[i]) && lines[i + 1]) {
+      if (/Id\.?\s*CEA\s*:.*Fecha\s*:/i.test(lines[i]) && lines[i + 1] && lines[i + 1].trim()) {
         const dateM = lines[i + 1].match(/(\d{2}\/\d{2}\/\d{4})/);
         if (dateM) { fields.fecha = dateM[1]; break; }
       }
@@ -278,7 +278,7 @@ const FieldExtractor = (() => {
       fields.idNotificacion = 'N' + notifIdM[1];
     } else {
       for (let i = 0; i < lines.length; i++) {
-        if (/Id\.?\s*CEA\s*:/i.test(lines[i]) && lines[i + 1]) {
+        if (/Id\.?\s*CEA\s*:/i.test(lines[i]) && lines[i + 1] && lines[i + 1].trim()) {
           const ceaVal = lines[i + 1].trim().split(/\s+/)[0];
           if (ceaVal && /^[A-Z0-9]{6,}$/i.test(ceaVal)) {
             fields.idNotificacion = ceaVal;

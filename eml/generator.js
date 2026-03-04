@@ -61,11 +61,23 @@ const EmlGenerator = (() => {
   }
 
   /**
+   * Convert a string to UTF-8 byte string using TextEncoder.
+   */
+  function toUtf8ByteString(str) {
+    const bytes = new TextEncoder().encode(str);
+    let result = '';
+    for (let i = 0; i < bytes.length; i++) {
+      result += String.fromCharCode(bytes[i]);
+    }
+    return result;
+  }
+
+  /**
    * Encode a UTF-8 string as RFC 2047 encoded-word for headers.
    */
   function encodeHeaderValue(str) {
     try {
-      const encoded = unescape(encodeURIComponent(str))
+      const encoded = toUtf8ByteString(str)
         .split('')
         .map(c => {
           const code = c.charCodeAt(0);
@@ -105,7 +117,7 @@ const EmlGenerator = (() => {
     const to = recipient || 'destinatario@example.com';
     const date = new Date().toUTCString();
     const boundary = '----=_Part_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-    const attachName = pdfFileName || scanResult.file.name || 'document.pdf';
+    const attachName = pdfFileName || (scanResult.file && scanResult.file.name) || 'document.pdf';
 
     const headers = [
       'MIME-Version: 1.0',
@@ -158,7 +170,7 @@ const EmlGenerator = (() => {
    * Quoted-printable encode a UTF-8 string.
    */
   function quotedPrintableEncode(str) {
-    const utf8 = unescape(encodeURIComponent(str));
+    const utf8 = toUtf8ByteString(str);
     let result = '';
     let lineLen = 0;
 

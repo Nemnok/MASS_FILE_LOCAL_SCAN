@@ -398,7 +398,7 @@
   // ---------------------------------------------------------------------------
 
   async function generateAllEml() {
-    const doneItems = queue.filter(i => i.scanResult && (i.status === 'done' || i.status === 'error'));
+    const doneItems = queue.filter(i => i.scanResult && i.status === 'done');
 
     if (doneItems.length === 0) {
       alert('No scan results available. Scan files first.');

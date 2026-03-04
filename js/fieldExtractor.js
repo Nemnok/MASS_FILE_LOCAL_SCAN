@@ -240,6 +240,93 @@ const FieldExtractor = (() => {
   }
 
   // ---------------------------------------------------------------------------
+  // Notification field extraction (for EML generation)
+  // ---------------------------------------------------------------------------
+
+  function extractNotificationFields(fullText) {
+    const fields = {};
+
+    // Emisor — government body / issuer
+    const emisorPatterns = [
+      /Tesorer[ií]a\s+General\s+de\s+la\s+Seguridad\s+Social/i,
+      /Agencia\s+Tributaria/i,
+      /Direcci[oó]n\s+General\s+de\s+Tr[aá]fico/i,
+      /Servicio\s+P[uú]blico\s+de\s+Empleo\s+Estatal/i,
+    ];
+    for (const pat of emisorPatterns) {
+      const m = fullText.match(pat);
+      if (m) { fields.emisor = m[0]; break; }
+    }
+
+    // Fecha — pick date from CEA header row (value line after "Fecha:" header),
+    // or from "Fecha de resolución:", avoiding "comprobada hasta la fecha" dates.
+    const lines = fullText.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (/Id\.?\s*CEA\s*:.*Fecha\s*:/i.test(lines[i]) && lines[i + 1] && lines[i + 1].trim()) {
+        const dateM = lines[i + 1].match(/(\d{2}\/\d{2}\/\d{4})/);
+        if (dateM) { fields.fecha = dateM[1]; break; }
+      }
+    }
+    if (!fields.fecha) {
+      const frM = fullText.match(/Fecha\s+de\s+resoluci[oó]n\s*:?\s*(\d{2}\/\d{2}\/\d{4})/i);
+      if (frM) fields.fecha = frM[1];
+    }
+
+    // Id Notificacion — look for N + digits, or CEA alphanumeric ID from the value row
+    const notifIdM = fullText.match(/\bN(\d{6,12})\b/);
+    if (notifIdM) {
+      fields.idNotificacion = 'N' + notifIdM[1];
+    } else {
+      for (let i = 0; i < lines.length; i++) {
+        if (/Id\.?\s*CEA\s*:/i.test(lines[i]) && lines[i + 1] && lines[i + 1].trim()) {
+          const ceaVal = lines[i + 1].trim().split(/\s+/)[0];
+          if (ceaVal && /^[A-Z0-9]{6,}$/i.test(ceaVal)) {
+            fields.idNotificacion = ceaVal;
+            break;
+          }
+        }
+      }
+    }
+
+    // Estado — look for status keywords near "estado"
+    const estadoM = fullText.match(
+      /[Ee]stado\s*:?\s*(PENDIENTE|ACEPTAD[AO]|RECHAZAD[AO]|NOTIFICAD[AO]|LE[IÍ]D[AO])/i
+    );
+    fields.estado = estadoM ? estadoM[1].toUpperCase() : 'PENDIENTE';
+
+    // Asunto — build from document model and content keywords
+    const parts = [];
+    if (/R[eé]gimen/i.test(fullText)) {
+      parts.push('REGIMENES SEG. SOCIAL OBLIGADOS A RED');
+    }
+    // Look for affiliation number or similar long reference
+    const afNum = fullText.match(/n[uú]mero\s+de\s+afiliaci[oó]n\s*:?\s*([\d]{4,20})/i);
+    if (afNum) parts.push(afNum[1]);
+
+    // Build subject suffix from model type: "MODELO TA R 24 090" → "TAR 090"
+    const modeloM = fullText.match(/MODELO\s+TA\s*R?\s*(?:\d{2,4}\s+)?(\d{3})/i);
+    if (modeloM) {
+      const formNumber = modeloM[1];
+      const suffix = [];
+      if (/regularizaci[oó]n/i.test(fullText)) suffix.push('REGULARIZACIÓN');
+      if (/aut[oó]nom/i.test(fullText)) suffix.push('AUTÓNOMOS');
+      suffix.push('TAR ' + formNumber);
+      parts.push(suffix.join(' '));
+    }
+    if (parts.length > 0) {
+      fields.asunto = parts.join(' / ');
+    }
+
+    // Expediente
+    const expM = fullText.match(
+      /[Ee]xpediente\s*(?:[Nn][uú]m\.?\s*)?:?\s*([\w\/\-]{4,30})/
+    );
+    fields.expediente = expM ? expM[1].trim() : '';
+
+    return fields;
+  }
+
+  // ---------------------------------------------------------------------------
   // Main extract entry point
   // ---------------------------------------------------------------------------
 
@@ -310,5 +397,5 @@ const FieldExtractor = (() => {
     };
   }
 
-  return { extract, normalizeText, validateDNI, validateNIE, validateCIF };
+  return { extract, extractNotificationFields, normalizeText, validateDNI, validateNIE, validateCIF };
 })();

@@ -29,6 +29,7 @@
   const btnCancel      = document.getElementById('btnCancel');
   const btnClear       = document.getElementById('btnClear');
   const btnExport      = document.getElementById('btnExport');
+  const btnGenEml      = document.getElementById('btnGenEml');
   const queueEmpty     = document.getElementById('queueEmpty');
   const queueTable     = document.getElementById('queueTable');
   const queueBody      = document.getElementById('queueBody');
@@ -393,6 +394,41 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Generate EML
+  // ---------------------------------------------------------------------------
+
+  async function generateAllEml() {
+    const doneItems = queue.filter(i => i.scanResult && i.status === 'done');
+
+    if (doneItems.length === 0) {
+      alert('No scan results available. Scan files first.');
+      return;
+    }
+
+    for (const item of doneItems) {
+      try {
+        const pdfFileBytes = await item.file.arrayBuffer();
+        const eml = EmlGenerator.generateEml({
+          scanResult: item.scanResult,
+          pdfFileBytes,
+          pdfFileName: item.file.name,
+        });
+
+        const blob = new Blob([eml], { type: 'message/rfc822' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = item.file.name.replace(/\.pdf$/i, '') + '.eml';
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('EML generation error for ' + item.file.name + ':', err);
+        alert('Error generating EML for ' + item.file.name + ': ' + err.message);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Controls state
   // ---------------------------------------------------------------------------
 
@@ -405,12 +441,14 @@
     btnCancel.disabled = !scanning;
     btnClear.disabled  = !hasFiles || scanning;
     btnExport.disabled = !hasResults;
+    btnGenEml.disabled = !hasResults || scanning;
   }
 
   btnScan.addEventListener('click', startScan);
   btnCancel.addEventListener('click', cancelScan);
   btnClear.addEventListener('click', clearQueue);
   btnExport.addEventListener('click', exportJSON);
+  btnGenEml.addEventListener('click', generateAllEml);
 
   // ---------------------------------------------------------------------------
   // Utilities

@@ -19,6 +19,10 @@ const EmlGenerator = (() => {
   /**
    * Build the notification body text from extracted fields.
    * Format matches the references in DEBUGFILES/salida1 and DEBUGFILES/salida_1.
+   *
+   * Trailing space convention: Estado, Emisor, and Fecha values always get a
+   * trailing space to match the notification system output format.  Name, Id
+   * Notificacion, Asunto and Expediente use the raw extracted value as-is.
    */
   function buildNotificationBody(notifFields) {
     const nombreLabel = notifFields.nombreLabel || 'Nombre';

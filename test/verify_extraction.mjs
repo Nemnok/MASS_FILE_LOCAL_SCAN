@@ -12,6 +12,7 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { tmpdir } from 'os';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -168,8 +169,8 @@ console.log('='.repeat(60));
   }
 
   // Write EML to /tmp for inspection
-  writeFileSync('/tmp/test_entrada1.eml', eml);
-  console.log('  → Wrote /tmp/test_entrada1.eml for inspection');
+  writeFileSync(join(tmpdir(), 'test_entrada1.eml'), eml);
+  console.log('  → Wrote ' + join(tmpdir(), 'test_entrada1.eml') + ' for inspection');
 }
 
 console.log(`\n${'='.repeat(60)}`);

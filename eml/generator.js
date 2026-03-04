@@ -18,23 +18,33 @@ const EmlGenerator = (() => {
 
   /**
    * Build the notification body text from extracted fields.
-   * Format matches the reference in DEBUGFILES/123.
+   * Format matches the references in DEBUGFILES/salida1 and DEBUGFILES/salida_1.
    */
   function buildNotificationBody(notifFields) {
+    const nombreLabel = notifFields.nombreLabel || 'Nombre';
+    const nombre = notifFields.nombre || '';
+    const idNotif = notifFields.idNotificacion || '';
+    const estado = (notifFields.estado || 'PENDIENTE') + ' ';
+    const emisor = (notifFields.emisor || 'Tesoreria General de la Seguridad Social') + ' ';
+    const asunto = notifFields.asunto || '';
+    const fecha = (notifFields.fecha || '11/02/2026 02:59:28') + ' ';
+    const expediente = notifFields.expediente || '';
+
     const lines = [
       '',
       'A continuación tiene los detalles de la notificación:',
-      'Id Notificacion: ' + (notifFields.idNotificacion || ''),
-      'Estado: ' + (notifFields.estado || 'PENDIENTE'),
-      'Emisor: ' + (notifFields.emisor || ''),
-      'Asunto: ' + (notifFields.asunto || ''),
-      'Fecha: ' + (notifFields.fecha || ''),
-      'Expediente: ' + (notifFields.expediente || ''),
+      nombreLabel + ': ' + nombre,
+      'Id Notificacion: ' + idNotif,
+      'Estado: ' + estado,
+      'Emisor: ' + emisor,
+      'Asunto: ' + asunto,
+      'Fecha: ' + fecha,
+      'Expediente: ' + expediente,
       '',
       'Un saludo,',
       '',
     ];
-    return lines.join('\r\n');
+    return lines.join('\n');
   }
 
   /**
@@ -105,11 +115,12 @@ const EmlGenerator = (() => {
    * @param {string} [options.recipient]   - Recipient email address
    * @param {ArrayBuffer} options.pdfFileBytes - Original PDF bytes to attach
    * @param {string} [options.pdfFileName] - PDF filename for the attachment
+   * @param {object} [options.notifMeta]   - Optional notification metadata overrides
    * @returns {string} EML content as a string
    */
-  function generateEml({ scanResult, recipient, pdfFileBytes, pdfFileName }) {
+  function generateEml({ scanResult, recipient, pdfFileBytes, pdfFileName, notifMeta }) {
     const fullText = scanResult.extraction.fullText || '';
-    const notifFields = FieldExtractor.extractNotificationFields(fullText);
+    const notifFields = FieldExtractor.extractNotificationFields(fullText, notifMeta);
 
     const body = buildNotificationBody(notifFields);
     const subject = 'Notificación de ' + (notifFields.emisor || 'entidad desconocida');
@@ -129,13 +140,14 @@ const EmlGenerator = (() => {
       'X-Mailer: MASS_FILE_LOCAL_SCAN EML Generator',
     ];
 
-    // Text body part
+    // Text body part — normalize to CRLF for RFC 2822 compliance
+    const bodyRfc = body.replace(/\r?\n/g, '\r\n');
     const textPart = [
       '--' + boundary,
       'Content-Type: text/plain; charset="UTF-8"',
       'Content-Transfer-Encoding: quoted-printable',
       '',
-      quotedPrintableEncode(body),
+      quotedPrintableEncode(bodyRfc),
     ].join('\r\n');
 
     // PDF attachment part

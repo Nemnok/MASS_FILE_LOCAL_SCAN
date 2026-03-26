@@ -89,6 +89,13 @@
 
   <!-- Application scripts -->
   <script src="js/fieldExtractor.js"></script>
+  <script>
+    // Load calibrated config (frozen, no runtime training)
+    fetch('calibration/calibratedConfig.json')
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(cfg) { if (cfg) FieldExtractor.loadCalibratedConfig(cfg); })
+      .catch(function() { /* config not available — use built-in defaults */ });
+  </script>
   <script src="js/scanner.js"></script>
   <script src="providers/excelProvider.js"></script>
   <script src="eml/generator.js"></script>

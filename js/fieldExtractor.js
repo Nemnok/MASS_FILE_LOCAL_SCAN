@@ -2,8 +2,38 @@
  * FieldExtractor — Stage 1 field recognition.
  * Extracts: docType, person.fullName, taxId (DNI/NIE/CIF with validation),
  * and reference fields (fechaResolucion, affiliationNumber, expediente, notificationNumber).
+ *
+ * Supports multiple layouts:
+ *   - Header/table-like: labeled rows  (NIF CCC/NAF: ..., Apellidos y Nombre/R. Social: ...)
+ *   - Paragraph-like: inline text      (D./Dña. ..., con NIF ...)
+ *
+ * Uses a calibrated config (calibration/calibratedConfig.json) for pattern
+ * weights and thresholds when available; falls back to built-in defaults.
  */
 const FieldExtractor = (() => {
+
+  // ---------------------------------------------------------------------------
+  // Calibrated config — loaded once (frozen at build time, no runtime training)
+  // ---------------------------------------------------------------------------
+
+  let _calibratedConfig = null;
+
+  function loadCalibratedConfig(cfg) {
+    _calibratedConfig = cfg;
+  }
+
+  function getCalibratedConfig() {
+    return _calibratedConfig;
+  }
+
+  // Try to auto-load config in Node.js environments
+  try {
+    if (typeof require !== 'undefined') {
+      const _cfg = require('../calibration/calibratedConfig.json');
+      if (_cfg && _cfg.version) _calibratedConfig = _cfg;
+    }
+  } catch (_) { /* browser or file not found — will use defaults */ }
+
   // ---------------------------------------------------------------------------
   // Tax ID validation
   // ---------------------------------------------------------------------------
@@ -216,10 +246,27 @@ const FieldExtractor = (() => {
   function extractReferences(text) {
     const refs = {};
 
+    // Fecha de resolución: labeled pattern
     const fechaM = text.match(
       /[Ff]echa\s+de\s+resoluci[oó]n\s*:?\s*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/
     );
     if (fechaM) refs.fechaResolucion = fechaM[1];
+
+    // Fecha: generic labeled pattern (calibrated)
+    if (!refs.fechaResolucion) {
+      const fechaM2 = text.match(
+        /[Ff][Ee]?[Cc][Hh][Aa]\s*:\s*(\d{2}\/\d{2}\/\d{4}(?:\s+\d{2}:\d{2}:\d{2})?)/im
+      );
+      if (fechaM2) refs.fechaGeneric = fechaM2[1];
+    }
+
+    // Paragraph fecha: "Con fecha DD/MM/YYYY" (calibrated fallback)
+    if (!refs.fechaResolucion && !refs.fechaGeneric) {
+      const fechaM3 = text.match(
+        /(?:Con|En|A)\s+fecha\s+(?:de\s+)?(\d{2}\/\d{2}\/\d{4})/im
+      );
+      if (fechaM3) refs.fechaGeneric = fechaM3[1];
+    }
 
     const afM = text.match(
       /[Nn][uú]mero\s+de\s+afiliaci[oó]n\s*:?\s*([\d\s\/\-]{4,20})/
@@ -235,6 +282,20 @@ const FieldExtractor = (() => {
       /[Nn]otificaci[oó]n\s*(?:[Nn][uú]m\.?\s*)?:?\s*([\w\/\-]{4,30})/
     );
     if (notifM) refs.notificationNumber = notifM[1].trim();
+
+    // NIF CCC/NAF labeled extraction (calibrated)
+    const nifLabeledM = text.match(
+      /(?:NIF|N\.?I\.?F\.?|CCC\s*\/\s*NAF|NIF\s*CCC\s*\/\s*NAF)\s*:?\s*([XYZ]\d{7}[A-Z]|\d{8}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])/i
+    );
+    if (nifLabeledM) refs.nifCccNaf = nifLabeledM[1].trim();
+
+    // Paragraph NIF: "con NIF ..." (calibrated fallback)
+    if (!refs.nifCccNaf) {
+      const nifConM = text.match(
+        /con\s+(?:NIF|N\.?I\.?F\.?|CCC\/NAF)\s*:?\s*([XYZ]\d{7}[A-Z]|\d{8}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])/i
+      );
+      if (nifConM) refs.nifCccNaf = nifConM[1].trim();
+    }
 
     return refs;
   }
@@ -272,6 +333,14 @@ const FieldExtractor = (() => {
     // Pattern 3: "Hola, NAME ---:"
     const holaM = fullText.match(/Hola,\s+([A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ\s]+?)\s*---/);
 
+    // Calibrated fallback patterns for paragraph layouts
+    // Pattern 4: "Apellidos y Nombre/R. Social: NAME" (no trailing ---)
+    const apNameM2 = !apNameM ? fullText.match(/Apellidos\s+y\s+Nombre\/R\.\s*Social\s*:\s*([A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ\s]+?)$/im) : null;
+    // Pattern 5: "D./Dña. NAME," or "D./Dña. NAME" at end of line (paragraph pattern)
+    const dnaM2 = !dnaM ? fullText.match(/D\.?\/?D[nñ]a\.?\s+([A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ\s]+?)\s*(?:,|$)/m) : null;
+    // Pattern 6: Honorific patterns "Don/Doña NAME," (paragraph pattern)
+    const honorM = fullText.match(/(?:Doña|Don|Dña\.)\s+([A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ\s]+?)\s*(?:,|$)/m);
+
     if (apNameM) {
       fields.nombre = apNameM[1].trim();
       fields.nombreLabel = 'Nombre';
@@ -281,6 +350,15 @@ const FieldExtractor = (() => {
     } else if (holaM) {
       fields.nombre = holaM[1].trim();
       fields.nombreLabel = 'NOMBRE';
+    } else if (apNameM2) {
+      fields.nombre = apNameM2[1].trim();
+      fields.nombreLabel = 'Nombre';
+    } else if (dnaM2) {
+      fields.nombre = dnaM2[1].trim();
+      fields.nombreLabel = 'NOMBRE';
+    } else if (honorM) {
+      fields.nombre = honorM[1].trim();
+      fields.nombreLabel = 'NOMBRE';
     }
 
     // Override name label based on document type
@@ -288,10 +366,27 @@ const FieldExtractor = (() => {
     if (isComunicacion) fields.nombreLabel = 'Nombre';
 
     // --------------- Id Notificacion ---------------
-    // From "Nº Documento: ..." line
+    // From "Nº Documento: ..." line (with accent/punctuation variants)
     const nDocM = fullText.match(/N[ºo°]\s*Documento\s*:\s*(.+?)(?:\s+Fecha\s*:|$)/im);
+    // Calibrated fallback: "Nº Doc.: ..." or "N.º Documento: ..."
+    const nDocM2 = !nDocM ? fullText.match(/N[ºo°.]?\s*(?:Documento|Doc\.?)\s*:\s*(.+?)$/im) : null;
+    // Calibrated fallback: "Número Documento: ..." or "Numero Documento: ..."
+    const nDocM3 = !nDocM && !nDocM2 ? fullText.match(/N[uú]mero\s+(?:de\s+)?[Dd]ocumento\s*:\s*(.+?)$/im) : null;
+    // Calibrated fallback: "Referencia: ..."
+    const nDocM4 = !nDocM && !nDocM2 && !nDocM3 ? fullText.match(/Referencia\s*:\s*(.+?)$/im) : null;
+    // Calibrated fallback: "Documento nº: ..."
+    const nDocM5 = !nDocM && !nDocM2 && !nDocM3 && !nDocM4 ? fullText.match(/Documento\s+n[ºo°]\s*:\s*(.+?)$/im) : null;
+
     if (nDocM) {
       fields.idNotificacion = nDocM[1].trim();
+    } else if (nDocM2) {
+      fields.idNotificacion = nDocM2[1].trim();
+    } else if (nDocM3) {
+      fields.idNotificacion = nDocM3[1].trim();
+    } else if (nDocM4) {
+      fields.idNotificacion = nDocM4[1].trim();
+    } else if (nDocM5) {
+      fields.idNotificacion = nDocM5[1].trim();
     }
 
     // --------------- Estado ---------------
@@ -303,8 +398,17 @@ const FieldExtractor = (() => {
     // --------------- Asunto ---------------
     // Direct extraction from "Asunto: VALUE" line in the document
     const asuntoLineM = fullText.match(/^Asunto\s*:\s*(.+)$/im);
+    // Calibrated fallback: "en relación con el asunto ..." (paragraph pattern)
+    const asuntoM2 = !asuntoLineM ? fullText.match(/en\s+relaci[oó]n\s+(?:con|al?)\s+(?:el\s+)?(?:asunto|expediente)\s+(?:relativo\s+a\s+)?(.+?)\./im) : null;
+    // Calibrated fallback: "le informamos sobre ..." (paragraph pattern)
+    const asuntoM3 = !asuntoLineM && !asuntoM2 ? fullText.match(/le\s+informamos\s+sobre\s+(.+?)\./im) : null;
+
     if (asuntoLineM) {
       fields.asunto = asuntoLineM[1].trim();
+    } else if (asuntoM2) {
+      fields.asunto = asuntoM2[1].trim();
+    } else if (asuntoM3) {
+      fields.asunto = asuntoM3[1].trim();
     }
 
     // For MODELO TA R documents, build asunto from components if not directly found
@@ -417,5 +521,5 @@ const FieldExtractor = (() => {
     };
   }
 
-  return { extract, extractNotificationFields, normalizeText, validateDNI, validateNIE, validateCIF };
+  return { extract, extractNotificationFields, normalizeText, validateDNI, validateNIE, validateCIF, loadCalibratedConfig, getCalibratedConfig };
 })();

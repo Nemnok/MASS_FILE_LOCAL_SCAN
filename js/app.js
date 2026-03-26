@@ -30,6 +30,9 @@
   const btnClear       = document.getElementById('btnClear');
   const btnExport      = document.getElementById('btnExport');
   const btnGenEml      = document.getElementById('btnGenEml');
+  const btnLoadCsv     = document.getElementById('btnLoadCsv');
+  const csvFileInput   = document.getElementById('csvFileInput');
+  const contactsStatus = document.getElementById('contactsStatus');
   const queueEmpty     = document.getElementById('queueEmpty');
   const queueTable     = document.getElementById('queueTable');
   const queueBody      = document.getElementById('queueBody');
@@ -408,8 +411,23 @@
     for (const item of doneItems) {
       try {
         const pdfFileBytes = await item.file.arrayBuffer();
+
+        // Attempt contacts lookup by extracted name
+        let recipient = '';
+        const sr = item.scanResult;
+        const lookupName = (sr.person && sr.person.fullName)
+          || (function () {
+            const ft = (sr.extraction && sr.extraction.fullText) || '';
+            const nf = FieldExtractor.extractNotificationFields(ft);
+            return nf.nombre || '';
+          })();
+        if (lookupName && ContactsProvider.count() > 0) {
+          recipient = ContactsProvider.findFirstEmailByName(lookupName) || '';
+        }
+
         const eml = EmlGenerator.generateEml({
           scanResult: item.scanResult,
+          recipient,
           pdfFileBytes,
           pdfFileName: item.file.name,
         });
@@ -449,6 +467,21 @@
   btnClear.addEventListener('click', clearQueue);
   btnExport.addEventListener('click', exportJSON);
   btnGenEml.addEventListener('click', generateAllEml);
+
+  // ── CSV contacts upload ──────────────────────────────────────────────────
+  btnLoadCsv.addEventListener('click', () => csvFileInput.click());
+  csvFileInput.addEventListener('change', async () => {
+    const file = csvFileInput.files[0];
+    csvFileInput.value = '';
+    if (!file) return;
+    try {
+      const n = await ContactsProvider.loadCsv(file);
+      contactsStatus.textContent = 'Contacts loaded: ' + n;
+    } catch (err) {
+      console.error('CSV load error:', err.message);
+      contactsStatus.textContent = 'CSV error';
+    }
+  });
 
   // ---------------------------------------------------------------------------
   // Utilities

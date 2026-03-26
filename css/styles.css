@@ -111,6 +111,7 @@ body {
 }
 .controls__left,
 .controls__right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.contacts-status { font-size: .82rem; color: var(--success); white-space: nowrap; }
 
 /* ── Overall progress ─────────────────────────────────────── */
 .progress-bar-container {

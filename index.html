@@ -35,6 +35,9 @@
         <button class="btn btn--secondary"  id="btnClear"  disabled>🗑 Clear</button>
       </div>
       <div class="controls__right">
+        <button class="btn btn--secondary" id="btnLoadCsv" title="Load contacts CSV for email lookup">📇 Load contacts (CSV)</button>
+        <input type="file" id="csvFileInput" accept=".csv,text/csv" hidden />
+        <span class="contacts-status" id="contactsStatus"></span>
         <button class="btn btn--export"  id="btnExport" disabled title="Export scan results as JSON">⬇ Export JSON</button>
         <button class="btn btn--stage"   disabled title="Stage 2: Excel matching — coming soon">📊 Match (Excel)</button>
         <button class="btn btn--stage"   id="btnGenEml" disabled title="Generate EML notification files for Outlook">✉ Generate (EML)</button>
@@ -98,6 +101,7 @@
   </script>
   <script src="js/scanner.js"></script>
   <script src="providers/excelProvider.js"></script>
+  <script src="providers/contactsProvider.js"></script>
   <script src="eml/generator.js"></script>
   <script src="js/app.js"></script>
 </body>

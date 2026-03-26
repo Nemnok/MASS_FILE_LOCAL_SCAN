@@ -129,7 +129,7 @@ const EmlGenerator = (() => {
     const body = buildNotificationBody(notifFields);
     const subject = 'Notificación de ' + (notifFields.emisor || 'entidad desconocida');
     const from = 'notificacion@seg-social.es';
-    const to = recipient || 'destinatario@example.com';
+    const to = recipient || '';
     const date = new Date().toUTCString();
     const boundary = '----=_Part_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     const attachName = pdfFileName || (scanResult.file && scanResult.file.name) || 'document.pdf';
